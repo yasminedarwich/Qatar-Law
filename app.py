@@ -7,7 +7,6 @@ from langchain.vectorstores import FAISS
 from langchain.llms import Ollama
 from langchain.chains import RetrievalQA
 from langchain.prompts import PromptTemplate
-import hashlib
 
 # ---------- Meezan law page URLs (add more as needed) ----------
 LAW_URLS = {
@@ -15,7 +14,7 @@ LAW_URLS = {
     "Penal Code": "https://www.meezan.qa/law/11/2004",
     "Commercial Law": "https://www.meezan.qa/law/27/2006",
     "Civil Code": "https://www.meezan.qa/law/22/2004",
-    "Family Law": "https://www.meezan.qa/law/29/2006",  # example
+    "Family Law": "https://www.meezan.qa/law/29/2006",
 }
 
 # ---------- Scrape a law page (cached) ----------
@@ -26,7 +25,6 @@ def scrape_law(url: str) -> str:
         resp = requests.get(url, timeout=10)
         resp.raise_for_status()
         soup = BeautifulSoup(resp.text, "html.parser")
-        # Meezan typically uses <div class="law-content"> or <article>
         content = soup.find("div", class_="law-content") or soup.find("article")
         if content:
             return content.get_text(separator="
@@ -107,6 +105,5 @@ if query:
 
     with st.expander("📄 View source texts"):
         for i, doc in enumerate(sources, 1):
-            # Show first 300 chars
             st.markdown(f"**Source {i}:** `{doc.metadata.get('source', 'Unknown')}`")
             st.text(doc.page_content[:300] + "...")
