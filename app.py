@@ -25,7 +25,8 @@ def scrape_law(url: str) -> str:
         resp = requests.get(url, timeout=10)
         resp.raise_for_status()
         soup = BeautifulSoup(resp.text, "html.parser")
-        content = soup.find("div", class_="law-content") or soup.find("article")
+        # Try common Meezan content containers
+        content = soup.find("div", class_="law-content") or soup.find("article") or soup.find("main")
         if content:
             return content.get_text(separator="
 ", strip=True)
@@ -35,12 +36,13 @@ def scrape_law(url: str) -> str:
         return f"Error: {e}"
 
 # ---------- Build vector store from scraped laws ----------
-@st.cache_resource
+@st.cache_resource(show_spinner=True)
 def build_vectorstore():
+    """Scrape all law pages and return a FAISS vector store."""
     all_texts = []
     for law_name, url in LAW_URLS.items():
         text = scrape_law(url)
-        if text and "Error" not in text:
+        if text and "Error" not in text and "Could not extract" not in text:
             all_texts.append(f"--- {law_name} ---
 {text}")
     if not all_texts:
@@ -61,15 +63,16 @@ st.set_page_config(page_title="Qatar Law Genius", layout="wide")
 st.title("🇶🇦 Qatar Law Genius – 100% Free & Accurate")
 st.markdown("Answers from official Meezan texts. No downloads, no paid APIs.")
 
-# Load vector store
-vectorstore = build_vectorstore()
+# Build vector store
+with st.spinner("Fetching and indexing Meezan laws..."):
+    vectorstore = build_vectorstore()
 if vectorstore is None:
-    st.error("Could not fetch any law pages. Check URLs or internet.")
+    st.error("Could not fetch any law pages. Check URLs or internet connection.")
     st.stop()
 
 retriever = vectorstore.as_retriever(search_kwargs={"k": 5})
 
-# Local LLM
+# Local LLM (Ollama)
 llm = Ollama(model="llama3", temperature=0)
 
 # Prompt forcing answer from context only
